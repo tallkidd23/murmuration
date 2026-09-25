@@ -17,22 +17,22 @@
     z-index: 10;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     pointer-events: none;
   }
   .hud-title {
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 700;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: #f0f6fc;
-    text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+    text-shadow: 0 2px 10px rgba(0,0,0,0.85);
   }
   .hud-sub {
     font-size: 11px;
     letter-spacing: 0.08em;
-    color: rgba(240,246,252,0.65);
-    text-shadow: 0 1px 6px rgba(0,0,0,0.8);
+    color: rgba(240,246,252,0.7);
+    text-shadow: 0 1px 6px rgba(0,0,0,0.85);
   }
   
   .controls-toggle {
@@ -56,11 +56,11 @@
 
   .panel {
     position: absolute;
-    top: 60px;
+    top: 58px;
     right: 16px;
     z-index: 20;
     width: 280px;
-    background: rgba(10, 15, 28, 0.85);
+    background: rgba(10, 15, 28, 0.88);
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 12px;
     padding: 16px;
@@ -69,7 +69,7 @@
     display: flex;
     flex-direction: column;
     gap: 14px;
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65);
     transition: opacity 0.25s, transform 0.25s;
   }
   .panel.hidden { opacity: 0; transform: translateY(-10px); pointer-events: none; }
@@ -77,7 +77,7 @@
   .control-group { display: flex; flex-direction: column; gap: 6px; }
   .control-header { display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(240,246,252,0.8); }
   
-  /* Sliders with generous touch hitboxes */
+  /* Touch-optimized sliders */
   .slider-box {
     position: relative;
     height: 36px;
@@ -153,15 +153,16 @@
 
   .instructions {
     position: absolute;
-    bottom: 16px;
+    bottom: 12px;
     left: 50%;
     transform: translateX(-50%);
     font-size: 11px;
     letter-spacing: 0.06em;
-    color: rgba(240, 246, 252, 0.5);
+    color: rgba(240, 246, 252, 0.55);
     text-shadow: 0 1px 4px rgba(0,0,0,0.9);
     pointer-events: none;
     text-align: center;
+    white-space: nowrap;
   }
 </style>
 </head>
@@ -171,25 +172,25 @@
 
 <div class="hud">
   <div class="hud-title">Starling Murmuration</div>
-  <div class="hud-sub" id="hud-stats">1,200 Birds • Topological 7-Neighbor Swarm</div>
+  <div class="hud-sub" id="hud-stats">1,400 Birds • Wide Horizon Perspective</div>
 </div>
 
 <button class="controls-toggle" id="toggle-panel">Controls ⚙</button>
 
 <div class="panel" id="panel">
   <div class="control-group">
-    <div class="control-header"><span>Flock Size</span><span id="val-flock">1200</span></div>
-    <div class="slider-box"><input type="range" id="param-flock" min="200" max="2500" step="50" value="1200"></div>
+    <div class="control-header"><span>Flock Size</span><span id="val-flock">1400</span></div>
+    <div class="slider-box"><input type="range" id="param-flock" min="300" max="3000" step="50" value="1400"></div>
   </div>
 
   <div class="control-group">
-    <div class="control-header"><span>Swarm Cohesion</span><span id="val-cohesion">1.2</span></div>
-    <div class="slider-box"><input type="range" id="param-cohesion" min="0.2" max="3.0" step="0.1" value="1.2"></div>
+    <div class="control-header"><span>Swarm Cohesion</span><span id="val-cohesion">1.3</span></div>
+    <div class="slider-box"><input type="range" id="param-cohesion" min="0.2" max="3.0" step="0.1" value="1.3"></div>
   </div>
 
   <div class="control-group">
-    <div class="control-header"><span>Roost Affinity</span><span id="val-perch">0.8</span></div>
-    <div class="slider-box"><input type="range" id="param-perch" min="0.0" max="2.0" step="0.1" value="0.8"></div>
+    <div class="control-header"><span>Roost Affinity</span><span id="val-perch">0.7</span></div>
+    <div class="slider-box"><input type="range" id="param-perch" min="0.0" max="2.0" step="0.1" value="0.7"></div>
   </div>
 
   <div class="control-group">
@@ -206,7 +207,7 @@
   <button class="action-btn" style="background:rgba(56,189,248,0.15);border-color:rgba(56,189,248,0.3);color:#7dd3fc;" id="btn-flush">🍃 Flush Roosting Birds</button>
 </div>
 
-<div class="instructions">Click or drag anywhere to summon hawk • Tap tree/wires to flush birds</div>
+<div class="instructions">Click or drag across sky to summon hawk • Tap tree / wires to flush flock</div>
 
 <script>
 (() => {
@@ -214,92 +215,211 @@
   const ctx = canvas.getContext('2d');
 
   let width = 0, height = 0;
-  function resize() {
-    width = canvas.width = window.innerWidth;
-    height = canvas.height = window.innerHeight;
-    generatePerchSpots();
-  }
 
-  // --- Palettes ---
+  // --- Color Palettes ---
   const palettes = {
     dusk: {
-      sky: ['#0b1329', '#1a223f', '#3b3252', '#78536a', '#c77d6c'],
-      bird: '#070a10',
-      wire: '#0a0d14',
-      tree: '#080a12',
-      hawk: '#2b0914'
+      sky: ['#0a1226', '#18203c', '#382f50', '#744f66', '#c47868'],
+      silhouette: '#060810',
+      wire: '#070a12',
+      hawk: '#2a0914'
     },
     sunset: {
-      sky: ['#120c24', '#38163e', '#7b2944', '#c94d37', '#f69d4d'],
-      bird: '#07050d',
-      wire: '#090710',
-      tree: '#07050e',
-      hawk: '#360912'
+      sky: ['#100b22', '#35143a', '#772640', '#c54833', '#f49948'],
+      silhouette: '#06040b',
+      wire: '#07050d',
+      hawk: '#340811'
     },
     dawn: {
-      sky: ['#07192f', '#10395b', '#3b6a82', '#979e95', '#eac59b'],
-      bird: '#050c14',
-      wire: '#06101c',
-      tree: '#040b12',
-      hawk: '#1a1824'
+      sky: ['#06172c', '#0f3656', '#38667e', '#929a90', '#e7bf96'],
+      silhouette: '#040b12',
+      wire: '#050d16',
+      hawk: '#181622'
     },
     void: {
-      sky: ['#020408', '#040710', '#070b18', '#0c1224', '#141d33'],
-      bird: '#000000',
-      wire: '#05070b',
-      tree: '#030508',
-      hawk: '#1c1c24'
+      sky: ['#010306', '#03060d', '#060914', '#0a0f1e', '#12192b'],
+      silhouette: '#000000',
+      wire: '#040609',
+      hawk: '#1a1a22'
     }
   };
 
   let currentTheme = 'dusk';
 
-  // --- Simulation Settings ---
-  let targetFlockSize = 1200;
-  let cohesionWeight = 1.2;
-  let perchAffinity = 0.8;
+  // --- Swarm Settings ---
+  let targetFlockSize = 1400;
+  let cohesionWeight = 1.3;
+  let perchAffinity = 0.7;
   const TOPOLOGICAL_NEIGHBORS = 7;
-  const MAX_SPEED = 5.2;
-  const MIN_SPEED = 2.4;
-  const MAX_FORCE = 0.22;
+  const MAX_SPEED = 4.8;
+  const MIN_SPEED = 2.0;
+  const MAX_FORCE = 0.20;
 
-  // --- Perch Points (Hydro Wires & Tree Canopy) ---
+  // --- Perch Points & Landscape Geometry Cache ---
   let perches = [];
-  function generatePerchSpots() {
-    perches = [];
-    
-    // Hydro Pole and 3 sagged wires (Left side)
-    const poleX = width * 0.16;
-    const poleTopY = height * 0.48;
-    const wireStartY = poleTopY + 10;
-    const wireSpan = width * 0.38;
+  let treeBranches = [];
+  let groundY = 0;
+  let poleGeom = null;
+  let wireCurves = [];
 
-    for (let w = 0; w < 3; w++) {
-      const yOffset = w * 28;
-      const steps = 70;
-      for (let i = 0; i <= steps; i++) {
-        const t = i / steps;
-        const px = (poleX - width * 0.1) + t * wireSpan;
-        const sag = Math.sin(t * Math.PI) * 22;
-        const py = wireStartY + yOffset + sag;
-        perches.push({ x: px, y: py, type: 'wire', occupied: null, angle: Math.cos(t * Math.PI) * 0.12 });
+  // Seeded deterministic random for consistent organic tree fractal
+  function createSeededRandom(seed = 42) {
+    let s = seed;
+    return () => {
+      s = (s * 9301 + 49297) % 233280;
+      return s / 233280;
+    };
+  }
+
+  function generateLandscape() {
+    perches = [];
+    treeBranches = [];
+    wireCurves = [];
+    groundY = height * 0.94;
+
+    // 1. Hydro Utility Pole (Left-mid side, vantage back)
+    const poleX = width * 0.22;
+    const poleH = height * 0.38; // Proportional distant scale
+    const poleTopY = groundY - poleH;
+    
+    poleGeom = {
+      x: poleX,
+      groundY: groundY,
+      topY: poleTopY,
+      width: Math.max(5, width * 0.007),
+      crossarm1Y: poleTopY + poleH * 0.08,
+      crossarm1W: poleH * 0.50,
+      crossarm2Y: poleTopY + poleH * 0.22,
+      crossarm2W: poleH * 0.42,
+      transX: poleX + poleH * 0.12,
+      transY: poleTopY + poleH * 0.32,
+      transW: poleH * 0.15,
+      transH: poleH * 0.25
+    };
+
+    // Build Interconnected Sagging Hydro Lines spanning across horizon
+    const leftAnchorX = -width * 0.05;
+    const rightAnchorX = width * 1.05;
+    
+    // Top High-Voltage Line (through top crossarm insulators)
+    wireCurves.push({
+      p0: { x: leftAnchorX, y: poleGeom.crossarm1Y - 8 },
+      cp1: { x: (leftAnchorX + poleX) / 2, y: poleGeom.crossarm1Y + 12 },
+      p1: { x: poleX - poleGeom.crossarm1W * 0.42, y: poleGeom.crossarm1Y }
+    });
+    wireCurves.push({
+      p0: { x: poleX + poleGeom.crossarm1W * 0.42, y: poleGeom.crossarm1Y },
+      cp1: { x: (poleX + rightAnchorX) / 2, y: poleGeom.crossarm1Y + 36 },
+      p1: { x: rightAnchorX, y: poleGeom.crossarm1Y + 60 }
+    });
+
+    // Secondary Distribution Lines (through second crossarm)
+    for (let i = 0; i < 3; i++) {
+      const yShift = i * 14;
+      const sag = 20 + i * 8;
+      // Left span
+      wireCurves.push({
+        p0: { x: leftAnchorX, y: poleGeom.crossarm2Y + yShift - 15 },
+        cp1: { x: (leftAnchorX + poleX) * 0.48, y: poleGeom.crossarm2Y + yShift + sag },
+        p1: { x: poleX - poleGeom.crossarm2W * 0.4 + i * 8, y: poleGeom.crossarm2Y + yShift }
+      });
+      // Right sweep span
+      wireCurves.push({
+        p0: { x: poleX + poleGeom.crossarm2W * 0.4 - i * 4, y: poleGeom.crossarm2Y + yShift },
+        cp1: { x: poleX + (rightAnchorX - poleX) * 0.45, y: poleGeom.crossarm2Y + yShift + sag * 1.6 },
+        p1: { x: rightAnchorX, y: poleGeom.crossarm2Y + yShift + 80 }
+      });
+    }
+
+    // Lower Communication / Guy wire
+    wireCurves.push({
+      p0: { x: poleX, y: poleGeom.topY + poleH * 0.65 },
+      cp1: { x: poleX * 0.5, y: poleGeom.topY + poleH * 0.75 },
+      p1: { x: leftAnchorX, y: groundY - 10 }
+    });
+
+    // Sample Perch Spots along all sagging wires
+    for (const curve of wireCurves) {
+      const steps = 30;
+      for (let s = 1; s < steps; s++) {
+        const t = s / steps;
+        // Quadratic Bezier interpolation
+        const invT = 1 - t;
+        const px = invT * invT * curve.p0.x + 2 * invT * t * curve.cp1.x + t * t * curve.p1.x;
+        const py = invT * invT * curve.p0.y + 2 * invT * t * curve.cp1.y + t * t * curve.p1.y;
+        
+        // Tangent angle
+        const tx = 2 * invT * (curve.cp1.x - curve.p0.x) + 2 * t * (curve.p1.x - curve.cp1.x);
+        const ty = 2 * invT * (curve.cp1.y - curve.p0.y) + 2 * t * (curve.p1.y - curve.cp1.y);
+        const ang = Math.atan2(ty, tx);
+
+        if (px > 0 && px < width) {
+          perches.push({ x: px, y: py - 1, type: 'wire', occupied: null, angle: ang });
+        }
       }
     }
 
-    // Oak Tree Canopy Perch Spots (Right side)
-    const treeBaseX = width * 0.82;
-    const treeBaseY = height * 0.52;
-    const branchCount = 180;
-    for (let i = 0; i < branchCount; i++) {
-      const rad = 40 + Math.random() * (Math.min(width, height) * 0.22);
-      const ang = Math.PI * 0.95 + Math.random() * Math.PI * 1.1; // dome spread
-      const px = treeBaseX + Math.cos(ang) * rad * 1.1;
-      const py = treeBaseY + Math.sin(ang) * rad * 0.75;
-      perches.push({ x: px, y: py, type: 'tree', occupied: null, angle: (Math.random() - 0.5) * 0.4 });
+    // 2. Bare Autumn/Winter Oak Tree Silhouette (Right side, distant view)
+    const treeX = width * 0.78;
+    const treeH = height * 0.46;
+    const treeTrunkY = groundY;
+    const rng = createSeededRandom(1337);
+
+    function buildBranch(x1, y1, length, angle, depth, thickness) {
+      const x2 = x1 + Math.cos(angle) * length;
+      const y2 = y1 + Math.sin(angle) * length;
+
+      treeBranches.push({ x1, y1, x2, y2, thickness, depth });
+
+      // Add perch spot at branch tips and strong nodes
+      if (depth >= 3 || (depth >= 2 && rng() > 0.4)) {
+        perches.push({
+          x: x2,
+          y: y2 - 1,
+          type: 'tree',
+          occupied: null,
+          angle: (rng() - 0.5) * 0.5
+        });
+      }
+
+      if (depth >= 6 || length < 7) return;
+
+      const branchesCount = depth <= 2 ? 3 : (rng() > 0.3 ? 2 : 3);
+      for (let b = 0; b < branchesCount; b++) {
+        const angleSpread = (b - (branchesCount - 1) / 2) * (0.35 + rng() * 0.25);
+        const nextAngle = angle + angleSpread + (rng() - 0.5) * 0.2;
+        const nextLen = length * (0.65 + rng() * 0.18);
+        const nextThick = Math.max(0.7, thickness * 0.65);
+        buildBranch(x2, y2, nextLen, nextAngle, depth + 1, nextThick);
+      }
     }
+
+    // Main Trunk & Primary Scaffold
+    const trunkW = Math.max(9, width * 0.012);
+    treeBranches.push({
+      x1: treeX,
+      y1: treeTrunkY,
+      x2: treeX,
+      y2: treeTrunkY - treeH * 0.32,
+      thickness: trunkW,
+      depth: 0,
+      isTrunk: true
+    });
+
+    // Sub-branches splitting upwards
+    buildBranch(treeX, treeTrunkY - treeH * 0.32, treeH * 0.26, -Math.PI * 0.5 - 0.32, 1, trunkW * 0.65);
+    buildBranch(treeX, treeTrunkY - treeH * 0.32, treeH * 0.28, -Math.PI * 0.5 + 0.28, 1, trunkW * 0.65);
+    buildBranch(treeX, treeTrunkY - treeH * 0.24, treeH * 0.22, -Math.PI * 0.5 - 0.65, 2, trunkW * 0.45);
+    buildBranch(treeX, treeTrunkY - treeH * 0.26, treeH * 0.22, -Math.PI * 0.5 + 0.62, 2, trunkW * 0.45);
   }
 
-  // --- Spatial Hash Grid for Ultra-Fast Topological Lookup ---
+  function resize() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+    generateLandscape();
+  }
+
+  // --- Spatial Hash for O(N) Flocking ---
   class SpatialGrid {
     constructor(cellSize) {
       this.cellSize = cellSize;
@@ -343,27 +463,23 @@
     }
   }
 
-  const grid = new SpatialGrid(65);
+  const grid = new SpatialGrid(60);
 
-  // --- Raptor / Hawk Threat ---
+  // --- Hawk / Raptor Threat Entity ---
   const hawk = {
     active: false,
     x: 0,
     y: 0,
     vx: 0,
     vy: 0,
-    targetX: 0,
-    targetY: 0,
     timer: 0,
     strike(tx, ty) {
       this.active = true;
-      this.timer = 180;
-      this.x = tx < width / 2 ? -60 : width + 60;
-      this.y = ty - 150 + (Math.random() - 0.5) * 100;
-      this.targetX = tx;
-      this.targetY = ty;
+      this.timer = 190;
+      this.x = tx < width / 2 ? -50 : width + 50;
+      this.y = ty - 120 + (Math.random() - 0.5) * 80;
       const angle = Math.atan2(ty - this.y, tx - this.x);
-      const spd = 12.0;
+      const spd = 11.0;
       this.vx = Math.cos(angle) * spd;
       this.vy = Math.sin(angle) * spd;
     },
@@ -372,7 +488,7 @@
       this.x += this.vx;
       this.y += this.vy;
       this.timer--;
-      if (this.timer <= 0 || (this.x < -120 || this.x > width + 120 || this.y > height + 120)) {
+      if (this.timer <= 0 || this.x < -100 || this.x > width + 100 || this.y > height + 100) {
         this.active = false;
       }
     },
@@ -384,25 +500,25 @@
       ctx.rotate(heading);
       ctx.fillStyle = palettes[currentTheme].hawk;
       
-      // Fierce raptor silhouette (broad wings, sharp tail)
+      // Aerodynamic raptor silhouette
       ctx.beginPath();
-      ctx.moveTo(14, 0);
-      ctx.lineTo(4, -5);
-      ctx.lineTo(-4, -22); // wingtip
-      ctx.lineTo(-2, -6);
-      ctx.lineTo(-12, -3);
-      ctx.lineTo(-18, 0); // tail tip
-      ctx.lineTo(-12, 3);
-      ctx.lineTo(-2, 6);
-      ctx.lineTo(-4, 22); // wingtip
-      ctx.lineTo(4, 5);
+      ctx.moveTo(16, 0);
+      ctx.lineTo(5, -6);
+      ctx.lineTo(-5, -26); // Left wingtip
+      ctx.lineTo(-3, -7);
+      ctx.lineTo(-14, -4);
+      ctx.lineTo(-20, 0); // Tail
+      ctx.lineTo(-14, 4);
+      ctx.lineTo(-3, 7);
+      ctx.lineTo(-5, 26); // Right wingtip
+      ctx.lineTo(5, 6);
       ctx.closePath();
       ctx.fill();
       ctx.restore();
     }
   };
 
-  // --- Starling Boid Entity ---
+  // --- Starling Boid Entity (Distant scale with wing silhouettes) ---
   class Starling {
     constructor() {
       this.reset();
@@ -410,9 +526,9 @@
 
     reset() {
       this.x = Math.random() * width;
-      this.y = Math.random() * (height * 0.6);
+      this.y = Math.random() * (height * 0.58);
       const ang = Math.random() * Math.PI * 2;
-      const spd = MIN_SPEED + Math.random() * 2;
+      const spd = MIN_SPEED + Math.random() * 1.8;
       this.vx = Math.cos(ang) * spd;
       this.vy = Math.sin(ang) * spd;
       this.ax = 0;
@@ -421,9 +537,8 @@
       this.state = 'flying'; // 'flying', 'landing', 'perched', 'flushing'
       this.perchTarget = null;
       this.wingPhase = Math.random() * Math.PI * 2;
-      this.wingSpeed = 0.28 + Math.random() * 0.12;
-      this.bankAngle = 0;
-      this.scale = 0.85 + Math.random() * 0.35;
+      this.wingSpeed = 0.26 + Math.random() * 0.12;
+      this.scale = 0.65 + Math.random() * 0.35; // Distant vantage scale
     }
 
     applyForce(fx, fy) {
@@ -434,7 +549,6 @@
     flock(neighbors) {
       if (this.state !== 'flying') return;
 
-      // Sort or limit to 7 topological nearest neighbors
       let count = 0;
       let alignX = 0, alignY = 0;
       let cohX = 0, cohY = 0;
@@ -448,36 +562,31 @@
         const dy = other.y - this.y;
         const d2 = dx * dx + dy * dy;
 
-        if (d2 > 0 && d2 < 14400) { // 120px sensory radius
+        if (d2 > 0 && d2 < 12000) {
           const d = Math.sqrt(d2);
-          
-          // Alignment
           alignX += other.vx;
           alignY += other.vy;
-
-          // Cohesion
           cohX += other.x;
           cohY += other.y;
 
-          // Separation (weighted inversely by distance)
-          if (d < 28) {
-            sepX -= (dx / d) * (28 - d);
-            sepY -= (dy / d) * (28 - d);
+          if (d < 24) {
+            sepX -= (dx / d) * (24 - d);
+            sepY -= (dy / d) * (24 - d);
           }
           count++;
         }
       }
 
       if (count > 0) {
-        // Alignment Force
+        // Alignment
         alignX /= count;
         alignY /= count;
         const aLen = Math.hypot(alignX, alignY) || 1;
         const steerAX = (alignX / aLen) * MAX_SPEED - this.vx;
         const steerAY = (alignY / aLen) * MAX_SPEED - this.vy;
-        this.applyForce(steerAX * 0.65, steerAY * 0.65);
+        this.applyForce(steerAX * 0.62, steerAY * 0.62);
 
-        // Cohesion Force
+        // Cohesion
         cohX /= count;
         cohY /= count;
         const toCenterX = cohX - this.x;
@@ -485,35 +594,34 @@
         const cLen = Math.hypot(toCenterX, toCenterY) || 1;
         const steerCX = (toCenterX / cLen) * MAX_SPEED - this.vx;
         const steerCY = (toCenterY / cLen) * MAX_SPEED - this.vy;
-        this.applyForce(steerCX * 0.45 * cohesionWeight, steerCY * 0.45 * cohesionWeight);
+        this.applyForce(steerCX * 0.48 * cohesionWeight, steerCY * 0.48 * cohesionWeight);
 
-        // Separation Force
-        this.applyForce(sepX * 0.85, sepY * 0.85);
+        // Separation
+        this.applyForce(sepX * 0.88, sepY * 0.88);
       }
 
-      // Predator Evasion
+      // Predator Panic Reaction
       if (hawk.active) {
         const hdx = this.x - hawk.x;
         const hdy = this.y - hawk.y;
         const hd2 = hdx * hdx + hdy * hdy;
-        if (hd2 < 45000) { // 210px danger bubble
+        if (hd2 < 48000) { // 220px evasion sphere
           const hd = Math.sqrt(hd2) || 1;
-          const fear = (210 - hd) / 210;
-          this.applyForce((hdx / hd) * fear * 2.8, (hdy / hd) * fear * 2.8);
-          // Shock wave roll
-          this.wingSpeed = 0.55;
+          const fear = (220 - hd) / 220;
+          this.applyForce((hdx / hd) * fear * 2.9, (hdy / hd) * fear * 2.9);
+          this.wingSpeed = 0.52;
         }
       }
 
-      // Sky Boundaries Soft Steering
-      const pad = 90;
+      // Boundaries Soft Cushion
+      const pad = 80;
       if (this.x < pad) this.applyForce(0.18, 0);
       if (this.x > width - pad) this.applyForce(-0.18, 0);
       if (this.y < pad) this.applyForce(0, 0.22);
-      if (this.y > height * 0.75) this.applyForce(0, -0.28);
+      if (this.y > groundY - 70) this.applyForce(0, -0.32);
 
-      // Random Roost Attraction
-      if (perchAffinity > 0 && Math.random() < 0.0008 * perchAffinity) {
+      // Organic Roost Attraction
+      if (perchAffinity > 0 && Math.random() < 0.0007 * perchAffinity) {
         this.seekPerch();
       }
     }
@@ -536,11 +644,11 @@
           this.perchTarget = null;
         }
         this.state = 'flushing';
-        const blastAngle = -Math.PI * 0.5 + (Math.random() - 0.5) * 1.2;
-        const spd = 4.5 + Math.random() * 2.5;
+        const blastAngle = -Math.PI * 0.5 + (Math.random() - 0.5) * 1.3;
+        const spd = 4.2 + Math.random() * 2.2;
         this.vx = Math.cos(blastAngle) * spd;
         this.vy = Math.sin(blastAngle) * spd;
-        setTimeout(() => { if (this.state === 'flushing') this.state = 'flying'; }, 600 + Math.random() * 600);
+        setTimeout(() => { if (this.state === 'flushing') this.state = 'flying'; }, 500 + Math.random() * 600);
       }
     }
 
@@ -555,7 +663,7 @@
         const dy = this.perchTarget.y - this.y;
         const dist = Math.hypot(dx, dy);
 
-        if (dist < 4) {
+        if (dist < 3.5) {
           this.x = this.perchTarget.x;
           this.y = this.perchTarget.y;
           this.vx = 0;
@@ -564,17 +672,16 @@
           return;
         }
 
-        const approachSpeed = Math.min(MAX_SPEED, Math.max(1.0, dist * 0.06));
+        const approachSpeed = Math.min(MAX_SPEED, Math.max(0.9, dist * 0.05));
         this.vx = (dx / dist) * approachSpeed;
         this.vy = (dy / dist) * approachSpeed;
         this.x += this.vx;
         this.y += this.vy;
-        this.wingPhase += this.wingSpeed * 0.7;
+        this.wingPhase += this.wingSpeed * 0.65;
         return;
       }
 
-      // Flying & Flushing dynamics
-      // Clamp force
+      // Dynamics Update
       const forceLen = Math.hypot(this.ax, this.ay);
       if (forceLen > MAX_FORCE) {
         this.ax = (this.ax / forceLen) * MAX_FORCE;
@@ -584,7 +691,6 @@
       this.vx += this.ax;
       this.vy += this.ay;
 
-      // Speed clamp
       const speed = Math.hypot(this.vx, this.vy) || 1;
       if (speed > MAX_SPEED) {
         this.vx = (this.vx / speed) * MAX_SPEED;
@@ -600,8 +706,7 @@
       this.ax = 0;
       this.ay = 0;
 
-      // Dynamic wing flapping frequency based on acceleration and glide
-      this.wingPhase += this.wingSpeed * (speed / 3.0);
+      this.wingPhase += this.wingSpeed * (speed / 2.8);
     }
 
     draw() {
@@ -611,43 +716,43 @@
       if (this.state === 'perched') {
         const perchAng = this.perchTarget ? this.perchTarget.angle : 0;
         ctx.rotate(perchAng);
-        ctx.fillStyle = palettes[currentTheme].bird;
-        // Perched Starling silhouette with head cocked
+        ctx.fillStyle = palettes[currentTheme].silhouette;
+        
+        // Compact perched starling dot/silhouette
         ctx.beginPath();
-        ctx.ellipse(0, -3, 2.8 * this.scale, 4.5 * this.scale, 0.2, 0, Math.PI * 2);
+        ctx.ellipse(0, -2.2 * this.scale, 1.8 * this.scale, 3.2 * this.scale, 0.15, 0, Math.PI * 2);
         ctx.fill();
-        ctx.beginPath(); // Beak
-        ctx.moveTo(2 * this.scale, -6 * this.scale);
-        ctx.lineTo(5 * this.scale, -5.5 * this.scale);
-        ctx.lineTo(2 * this.scale, -4.5 * this.scale);
+        ctx.beginPath();
+        ctx.moveTo(1.2 * this.scale, -4.5 * this.scale);
+        ctx.lineTo(3.2 * this.scale, -4.2 * this.scale);
+        ctx.lineTo(1.2 * this.scale, -3.2 * this.scale);
         ctx.fill();
         ctx.restore();
         return;
       }
 
-      // Flying silhouette
+      // Flying silhouette with wing stroke cycle
       const heading = Math.atan2(this.vy, this.vx);
       ctx.rotate(heading);
       ctx.scale(this.scale, this.scale);
 
-      const wingCycle = Math.sin(this.wingPhase); // -1 (upstroke) to 1 (downstroke)
-      const wingSpan = 7.5;
-      const wingTipY = wingCycle * 6.5;
+      const wingCycle = Math.sin(this.wingPhase); // -1 to 1
+      const wingSpan = 5.8;
+      const wingTipY = wingCycle * 4.8;
 
-      ctx.fillStyle = palettes[currentTheme].bird;
+      ctx.fillStyle = palettes[currentTheme].silhouette;
 
       ctx.beginPath();
-      // Slender Starling torso
-      ctx.moveTo(5, 0); // Beak
-      ctx.lineTo(2, -1.2);
-      ctx.lineTo(-1, -wingSpan); // Left wingtip
-      ctx.lineTo(-2.5, -wingTipY);
-      ctx.lineTo(-4, -0.8);
-      ctx.lineTo(-7, 0); // Tail
-      ctx.lineTo(-4, 0.8);
-      ctx.lineTo(-2.5, wingTipY);
-      ctx.lineTo(-1, wingSpan); // Right wingtip
-      ctx.lineTo(2, 1.2);
+      ctx.moveTo(4.2, 0); // Beak
+      ctx.lineTo(1.6, -1.0);
+      ctx.lineTo(-0.8, -wingSpan); // Left wing
+      ctx.lineTo(-2.0, -wingTipY);
+      ctx.lineTo(-3.2, -0.6);
+      ctx.lineTo(-5.5, 0); // Tail
+      ctx.lineTo(-3.2, 0.6);
+      ctx.lineTo(-2.0, wingTipY);
+      ctx.lineTo(-0.8, wingSpan); // Right wing
+      ctx.lineTo(1.6, 1.0);
       ctx.closePath();
       ctx.fill();
 
@@ -655,7 +760,7 @@
     }
   }
 
-  // --- Landscape Rendering: Silhouetted Hydro Wires & Oak Tree ---
+  // --- Landscape Rendering: Intricate Winter Tree & Hydro Utility Pole ---
   function drawSky() {
     const pal = palettes[currentTheme];
     const grad = ctx.createLinearGradient(0, 0, 0, height);
@@ -669,92 +774,99 @@
 
   function drawLandscape() {
     const pal = palettes[currentTheme];
+    ctx.fillStyle = pal.silhouette;
+    ctx.strokeStyle = pal.silhouette;
 
-    // 1. Hydro Utility Pole & Power Lines
-    const poleX = width * 0.16;
-    const poleTopY = height * 0.48;
-    const poleBaseY = height;
-    
-    ctx.strokeStyle = pal.wire;
-    ctx.fillStyle = pal.wire;
-
-    // Pole Mast
+    // Ground horizon silhouette
     ctx.beginPath();
-    ctx.moveTo(poleX - 4, poleBaseY);
-    ctx.lineTo(poleX - 2.5, poleTopY);
-    ctx.lineTo(poleX + 2.5, poleTopY);
-    ctx.lineTo(poleX + 4, poleBaseY);
+    ctx.moveTo(0, groundY);
+    ctx.lineTo(width, groundY);
+    ctx.lineTo(width, height);
+    ctx.lineTo(0, height);
     ctx.fill();
 
-    // Crossarm Beam
-    ctx.fillRect(poleX - 32, poleTopY + 8, 64, 4);
-    ctx.fillRect(poleX - 22, poleTopY + 36, 44, 4);
-
-    // Insulators
-    ctx.fillRect(poleX - 28, poleTopY + 4, 3, 5);
-    ctx.fillRect(poleX + 25, poleTopY + 4, 3, 5);
-    ctx.fillRect(poleX - 18, poleTopY + 32, 3, 5);
-    ctx.fillRect(poleX + 15, poleTopY + 32, 3, 5);
-
-    // Sagging Hydro Wires
-    ctx.lineWidth = 1.2;
-    for (let w = 0; w < 3; w++) {
-      const yOffset = w * 28;
-      const startX = poleX - width * 0.1;
-      const endX = poleX + width * 0.28;
-      const startY = poleTopY + 10 + yOffset;
-
+    // 1. Hydro Utility Pole & Transformer Apparatus (Faithful Reference Render)
+    if (poleGeom) {
+      const p = poleGeom;
+      
+      // Main Tapered Wooden Mast
       ctx.beginPath();
-      ctx.moveTo(startX, startY);
-      ctx.quadraticCurveTo(
-        (startX + endX) / 2,
-        startY + 22,
-        endX,
-        startY + 4
-      );
+      ctx.moveTo(p.x - p.width * 0.8, p.groundY);
+      ctx.lineTo(p.x - p.width * 0.45, p.topY);
+      ctx.quadraticCurveTo(p.x, p.topY - 4, p.x + p.width * 0.45, p.topY);
+      ctx.lineTo(p.x + p.width * 0.8, p.groundY);
+      ctx.fill();
+
+      // Top Crossarm & Insulator Pins
+      ctx.fillRect(p.x - p.crossarm1W * 0.5, p.crossarm1Y, p.crossarm1W, 5);
+      // Diagonal struts
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(p.x - p.crossarm1W * 0.35, p.crossarm1Y + 5);
+      ctx.lineTo(p.x, p.crossarm1Y + 24);
+      ctx.lineTo(p.x + p.crossarm1W * 0.35, p.crossarm1Y + 5);
+      ctx.stroke();
+
+      // 4 Top Insulators
+      [-0.42, -0.15, 0.15, 0.42].forEach(ratio => {
+        const ix = p.x + p.crossarm1W * ratio;
+        ctx.fillRect(ix - 2, p.crossarm1Y - 6, 4, 6);
+        ctx.fillRect(ix - 3.5, p.crossarm1Y - 8, 7, 2);
+      });
+
+      // Second Lower Crossarm
+      ctx.fillRect(p.x - p.crossarm2W * 0.5, p.crossarm2Y, p.crossarm2W, 5);
+      // Lower Diagonal struts
+      ctx.beginPath();
+      ctx.moveTo(p.x - p.crossarm2W * 0.3, p.crossarm2Y + 5);
+      ctx.lineTo(p.x, p.crossarm2Y + 20);
+      ctx.lineTo(p.x + p.crossarm2W * 0.3, p.crossarm2Y + 5);
+      ctx.stroke();
+
+      // Lower Insulator Pins
+      [-0.38, -0.12, 0.12, 0.38].forEach(ratio => {
+        const ix = p.x + p.crossarm2W * ratio;
+        ctx.fillRect(ix - 2, p.crossarm2Y - 5, 4, 5);
+      });
+
+      // Heavy Distribution Transformer Drum (Mounted right side of mast)
+      ctx.beginPath();
+      ctx.roundRect(p.transX - p.transW * 0.5, p.transY, p.transW, p.transH, 3);
+      ctx.fill();
+      // Transformer Top Lid Bushings
+      ctx.fillRect(p.transX - p.transW * 0.3, p.transY - 5, 4, 5);
+      ctx.fillRect(p.transX + p.transW * 0.1, p.transY - 5, 4, 5);
+      // Secondary Jumper Wires
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(p.transX - p.transW * 0.2, p.transY - 5);
+      ctx.quadraticCurveTo(p.transX - p.transW * 0.6, p.crossarm2Y + 12, p.x + p.crossarm2W * 0.12, p.crossarm2Y + 4);
+      ctx.moveTo(p.transX + p.transW * 0.2, p.transY - 5);
+      ctx.quadraticCurveTo(p.transX + p.transW * 0.7, p.crossarm2Y + 14, p.x + p.crossarm2W * 0.38, p.crossarm2Y + 4);
+      ctx.stroke();
+
+      // Cutout switches / Fuse brackets
+      ctx.fillRect(p.x - p.crossarm2W * 0.28, p.transY + 4, 6, 12);
+    }
+
+    // Sagging Continuous Hydro Wires
+    ctx.strokeStyle = pal.wire;
+    ctx.lineWidth = 1.1;
+    for (const c of wireCurves) {
+      ctx.beginPath();
+      ctx.moveTo(c.p0.x, c.p0.y);
+      ctx.quadraticCurveTo(c.cp1.x, c.cp1.y, c.p1.x, c.p1.y);
       ctx.stroke();
     }
 
-    // 2. Silhouetted Oak Tree Canopy (Procedural branch clusters)
-    const treeBaseX = width * 0.82;
-    const treeBaseY = height;
-    ctx.fillStyle = pal.tree;
-    ctx.strokeStyle = pal.tree;
-
-    // Trunk
-    ctx.beginPath();
-    ctx.moveTo(treeBaseX - 18, treeBaseY);
-    ctx.quadraticCurveTo(treeBaseX - 6, treeBaseY - 140, treeBaseX - 2, height * 0.56);
-    ctx.quadraticCurveTo(treeBaseX + 8, treeBaseY - 140, treeBaseX + 22, treeBaseY);
-    ctx.fill();
-
-    // Main Branches & Natural Canopy Mass
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    // Branch 1
-    ctx.moveTo(treeBaseX, height * 0.58);
-    ctx.quadraticCurveTo(treeBaseX - 45, height * 0.50, treeBaseX - 75, height * 0.44);
-    // Branch 2
-    ctx.moveTo(treeBaseX + 2, height * 0.56);
-    ctx.quadraticCurveTo(treeBaseX + 50, height * 0.48, treeBaseX + 80, height * 0.42);
-    // Branch 3
-    ctx.moveTo(treeBaseX - 1, height * 0.54);
-    ctx.quadraticCurveTo(treeBaseX - 15, height * 0.42, treeBaseX - 25, height * 0.35);
-    ctx.stroke();
-
-    // Leafy Canopy Silhouette Clusters
-    const clusters = [
-      { x: treeBaseX - 65, y: height * 0.44, rx: 55, ry: 38 },
-      { x: treeBaseX + 70, y: height * 0.43, rx: 60, ry: 42 },
-      { x: treeBaseX - 20, y: height * 0.34, rx: 50, ry: 35 },
-      { x: treeBaseX + 25, y: height * 0.36, rx: 54, ry: 38 },
-      { x: treeBaseX, y: height * 0.46, rx: 70, ry: 45 }
-    ];
-
-    for (let c of clusters) {
+    // 2. Intricate Bare Winter Tree (Organic Branching)
+    ctx.strokeStyle = pal.silhouette;
+    for (const b of treeBranches) {
+      ctx.lineWidth = b.thickness;
       ctx.beginPath();
-      ctx.ellipse(c.x, c.y, c.rx, c.ry, 0, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.moveTo(b.x1, b.y1);
+      ctx.lineTo(b.x2, b.y2);
+      ctx.stroke();
     }
   }
 
@@ -766,36 +878,33 @@
       const b = flock.pop();
       if (b.perchTarget) b.perchTarget.occupied = null;
     }
-    document.getElementById('hud-stats').innerText = `${flock.length.toLocaleString()} Birds • Topological 7-Neighbor Swarm`;
+    document.getElementById('hud-stats').innerText = `${flock.length.toLocaleString()} Birds • Wide Horizon Perspective`;
   }
 
   // --- Main Animation Loop ---
   function loop() {
     drawSky();
 
-    // Rebuild spatial grid for fast O(N) neighbor searches
     grid.clear();
     for (let i = 0; i < flock.length; i++) {
       grid.insert(flock[i]);
     }
 
-    // Update Hawk
     hawk.update();
 
-    // Update & Flock Boids
     for (let i = 0; i < flock.length; i++) {
       const bird = flock[i];
       if (bird.state === 'flying') {
-        const neighbors = grid.getNeighbors(bird, 90);
+        const neighbors = grid.getNeighbors(bird, 75);
         bird.flock(neighbors);
       }
       bird.update();
     }
 
-    // Render Landscape Silhouette
+    // Draw silhouette environment
     drawLandscape();
 
-    // Render Hawk & Boids
+    // Draw Hawk & Boids
     hawk.draw();
     for (let i = 0; i < flock.length; i++) {
       flock[i].draw();
@@ -804,24 +913,19 @@
     requestAnimationFrame(loop);
   }
 
-  // --- User Interactions ---
+  // --- Interactions ---
   window.addEventListener('resize', resize);
   resize();
   adjustFlockSize();
   requestAnimationFrame(loop);
 
-  // Trigger hawk strike on screen tap/click
   canvas.addEventListener('pointerdown', (e) => {
-    // Check if tapping tree or wires to flush
     const rect = canvas.getBoundingClientRect();
     const px = e.clientX - rect.left;
     const py = e.clientY - rect.top;
 
-    if (px > width * 0.65 && py > height * 0.3) {
-      // Near tree
-      flushAll();
-    } else if (px < width * 0.45 && py > height * 0.4) {
-      // Near wires
+    // Check if tapping near tree or wire zones to flush
+    if (py > height * 0.45 && (px > width * 0.6 || px < width * 0.45)) {
       flushAll();
     } else {
       hawk.strike(px, py);
@@ -870,7 +974,7 @@
   });
 
   document.getElementById('btn-hawk').addEventListener('click', () => {
-    hawk.strike(width * 0.5, height * 0.35);
+    hawk.strike(width * 0.5, height * 0.28);
   });
 
   document.getElementById('btn-flush').addEventListener('click', () => {
