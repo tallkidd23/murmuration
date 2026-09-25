@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Starling Murmuration — Emergent Swarm</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #05070c; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; color: #e0e8f0; }
+  #canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: block; }
+  
+  /* UI Overlay */
+  .hud {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: none;
+  }
+  .hud-title {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #f0f6fc;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+  }
+  .hud-sub {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: rgba(240,246,252,0.65);
+    text-shadow: 0 1px 6px rgba(0,0,0,0.8);
+  }
+  
+  .controls-toggle {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 20;
+    background: rgba(15, 23, 42, 0.75);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #e2e8f0;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    transition: all 0.2s;
+  }
+  .controls-toggle:hover { background: rgba(30, 41, 59, 0.9); border-color: rgba(255, 255, 255, 0.3); }
+
+  .panel {
+    position: absolute;
+    top: 60px;
+    right: 16px;
+    z-index: 20;
+    width: 280px;
+    background: rgba(10, 15, 28, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 16px;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+    transition: opacity 0.25s, transform 0.25s;
+  }
+  .panel.hidden { opacity: 0; transform: translateY(-10px); pointer-events: none; }
+
+  .control-group { display: flex; flex-direction: column; gap: 6px; }
+  .control-header { display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(240,246,252,0.8); }
+  
+  /* Sliders with generous touch hitboxes */
+  .slider-box {
+    position: relative;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    touch-action: none;
+  }
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+    cursor: pointer;
+    transition: transform 0.15s, background 0.15s;
+  }
+  input[type="range"]:active::-webkit-slider-thumb {
+    transform: scale(1.25);
+    background: #7dd3fc;
+    box-shadow: 0 0 16px rgba(125, 211, 252, 0.9);
+  }
+
+  /* Theme Switcher */
+  .theme-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .theme-btn {
+    padding: 6px 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-align: center;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.7);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .theme-btn.active {
+    background: rgba(56, 189, 248, 0.2);
+    border-color: #38bdf8;
+    color: #38bdf8;
+  }
+
+  .action-btn {
+    width: 100%;
+    padding: 8px 0;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .action-btn:hover { background: rgba(239, 68, 68, 0.35); border-color: #ef4444; }
+
+  .instructions {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    color: rgba(240, 246, 252, 0.5);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+    pointer-events: none;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div class="hud">
+  <div class="hud-title">Starling Murmuration</div>
+  <div class="hud-sub" id="hud-stats">1,200 Birds • Topological 7-Neighbor Swarm</div>
+</div>
+
+<button class="controls-toggle" id="toggle-panel">Controls ⚙</button>
+
+<div class="panel" id="panel">
+  <div class="control-group">
+    <div class="control-header"><span>Flock Size</span><span id="val-flock">1200</span></div>
+    <div class="slider-box"><input type="range" id="param-flock" min="200" max="2500" step="50" value="1200"></div>
+  </div>
+
+  <div class="control-group">
+    <div class="control-header"><span>Swarm Cohesion</span><span id="val-cohesion">1.2</span></div>
+    <div class="slider-box"><input type="range" id="param-cohesion" min="0.2" max="3.0" step="0.1" value="1.2"></div>
+  </div>
+
+  <div class="control-group">
+    <div class="control-header"><span>Roost Affinity</span><span id="val-perch">0.8</span></div>
+    <div class="slider-box"><input type="range" id="param-perch" min="0.0" max="2.0" step="0.1" value="0.8"></div>
+  </div>
+
+  <div class="control-group">
+    <div class="control-header"><span>Sky Palette</span></div>
+    <div class="theme-grid">
+      <button class="theme-btn active" data-theme="dusk">Dusk</button>
+      <button class="theme-btn" data-theme="sunset">Sunset</button>
+      <button class="theme-btn" data-theme="dawn">Dawn</button>
+      <button class="theme-btn" data-theme="void">Night</button>
+    </div>
+  </div>
+
+  <button class="action-btn" id="btn-hawk">⚡ Hawk Strike (Scare Flock)</button>
+  <button class="action-btn" style="background:rgba(56,189,248,0.15);border-color:rgba(56,189,248,0.3);color:#7dd3fc;" id="btn-flush">🍃 Flush Roosting Birds</button>
+</div>
+
+<div class="instructions">Click or drag anywhere to summon hawk • Tap tree/wires to flush birds</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+
+  let width = 0, height = 0;
+  function resize() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+    generatePerchSpots();
+  }
+
+  // --- Palettes ---
+  const palettes = {
+    dusk: {
+      sky: ['#0b1329', '#1a223f', '#3b3252', '#78536a', '#c77d6c'],
+      bird: '#070a10',
+      wire: '#0a0d14',
+      tree: '#080a12',
+      hawk: '#2b0914'
+    },
+    sunset: {
+      sky: ['#120c24', '#38163e', '#7b2944', '#c94d37', '#f69d4d'],
+      bird: '#07050d',
+      wire: '#090710',
+      tree: '#07050e',
+      hawk: '#360912'
+    },
+    dawn: {
+      sky: ['#07192f', '#10395b', '#3b6a82', '#979e95', '#eac59b'],
+      bird: '#050c14',
+      wire: '#06101c',
+      tree: '#040b12',
+      hawk: '#1a1824'
+    },
+    void: {
+      sky: ['#020408', '#040710', '#070b18', '#0c1224', '#141d33'],
+      bird: '#000000',
+      wire: '#05070b',
+      tree: '#030508',
+      hawk: '#1c1c24'
+    }
+  };
+
+  let currentTheme = 'dusk';
+
+  // --- Simulation Settings ---
+  let targetFlockSize = 1200;
+  let cohesionWeight = 1.2;
+  let perchAffinity = 0.8;
+  const TOPOLOGICAL_NEIGHBORS = 7;
+  const MAX_SPEED = 5.2;
+  const MIN_SPEED = 2.4;
+  const MAX_FORCE = 0.22;
+
+  // --- Perch Points (Hydro Wires & Tree Canopy) ---
+  let perches = [];
+  function generatePerchSpots() {
+    perches = [];
+    
+    // Hydro Pole and 3 sagged wires (Left side)
+    const poleX = width * 0.16;
+    const poleTopY = height * 0.48;
+    const wireStartY = poleTopY + 10;
+    const wireSpan = width * 0.38;
+
+    for (let w = 0; w < 3; w++) {
+      const yOffset = w * 28;
+      const steps = 70;
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const px = (poleX - width * 0.1) + t * wireSpan;
+        const sag = Math.sin(t * Math.PI) * 22;
+        const py = wireStartY + yOffset + sag;
+        perches.push({ x: px, y: py, type: 'wire', occupied: null, angle: Math.cos(t * Math.PI) * 0.12 });
+      }
+    }
+
+    // Oak Tree Canopy Perch Spots (Right side)
+    const treeBaseX = width * 0.82;
+    const treeBaseY = height * 0.52;
+    const branchCount = 180;
+    for (let i = 0; i < branchCount; i++) {
+      const rad = 40 + Math.random() * (Math.min(width, height) * 0.22);
+      const ang = Math.PI * 0.95 + Math.random() * Math.PI * 1.1; // dome spread
+      const px = treeBaseX + Math.cos(ang) * rad * 1.1;
+      const py = treeBaseY + Math.sin(ang) * rad * 0.75;
+      perches.push({ x: px, y: py, type: 'tree', occupied: null, angle: (Math.random() - 0.5) * 0.4 });
+    }
+  }
+
+  // --- Spatial Hash Grid for Ultra-Fast Topological Lookup ---
+  class SpatialGrid {
+    constructor(cellSize) {
+      this.cellSize = cellSize;
+      this.grid = new Map();
+    }
+    clear() {
+      this.grid.clear();
+    }
+    hash(x, y) {
+      const gx = Math.floor(x / this.cellSize);
+      const gy = Math.floor(y / this.cellSize);
+      return (gx * 73856093) ^ (gy * 19349663);
+    }
+    insert(bird) {
+      const h = this.hash(bird.x, bird.y);
+      let cell = this.grid.get(h);
+      if (!cell) {
+        cell = [];
+        this.grid.set(h, cell);
+      }
+      cell.push(bird);
+    }
+    getNeighbors(bird, radius) {
+      const minX = Math.floor((bird.x - radius) / this.cellSize);
+      const maxX = Math.floor((bird.x + radius) / this.cellSize);
+      const minY = Math.floor((bird.y - radius) / this.cellSize);
+      const maxY = Math.floor((bird.y + radius) / this.cellSize);
+      const list = [];
+      for (let gx = minX; gx <= maxX; gx++) {
+        for (let gy = minY; gy <= maxY; gy++) {
+          const h = (gx * 73856093) ^ (gy * 19349663);
+          const cell = this.grid.get(h);
+          if (cell) {
+            for (let i = 0; i < cell.length; i++) {
+              if (cell[i] !== bird) list.push(cell[i]);
+            }
+          }
+        }
+      }
+      return list;
+    }
+  }
+
+  const grid = new SpatialGrid(65);
+
+  // --- Raptor / Hawk Threat ---
+  const hawk = {
+    active: false,
+    x: 0,
+    y: 0,
+    vx: 0,
+    vy: 0,
+    targetX: 0,
+    targetY: 0,
+    timer: 0,
+    strike(tx, ty) {
+      this.active = true;
+      this.timer = 180;
+      this.x = tx < width / 2 ? -60 : width + 60;
+      this.y = ty - 150 + (Math.random() - 0.5) * 100;
+      this.targetX = tx;
+      this.targetY = ty;
+      const angle = Math.atan2(ty - this.y, tx - this.x);
+      const spd = 12.0;
+      this.vx = Math.cos(angle) * spd;
+      this.vy = Math.sin(angle) * spd;
+    },
+    update() {
+      if (!this.active) return;
+      this.x += this.vx;
+      this.y += this.vy;
+      this.timer--;
+      if (this.timer <= 0 || (this.x < -120 || this.x > width + 120 || this.y > height + 120)) {
+        this.active = false;
+      }
+    },
+    draw() {
+      if (!this.active) return;
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      const heading = Math.atan2(this.vy, this.vx);
+      ctx.rotate(heading);
+      ctx.fillStyle = palettes[currentTheme].hawk;
+      
+      // Fierce raptor silhouette (broad wings, sharp tail)
+      ctx.beginPath();
+      ctx.moveTo(14, 0);
+      ctx.lineTo(4, -5);
+      ctx.lineTo(-4, -22); // wingtip
+      ctx.lineTo(-2, -6);
+      ctx.lineTo(-12, -3);
+      ctx.lineTo(-18, 0); // tail tip
+      ctx.lineTo(-12, 3);
+      ctx.lineTo(-2, 6);
+      ctx.lineTo(-4, 22); // wingtip
+      ctx.lineTo(4, 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+  };
+
+  // --- Starling Boid Entity ---
+  class Starling {
+    constructor() {
+      this.reset();
+    }
+
+    reset() {
+      this.x = Math.random() * width;
+      this.y = Math.random() * (height * 0.6);
+      const ang = Math.random() * Math.PI * 2;
+      const spd = MIN_SPEED + Math.random() * 2;
+      this.vx = Math.cos(ang) * spd;
+      this.vy = Math.sin(ang) * spd;
+      this.ax = 0;
+      this.ay = 0;
+      
+      this.state = 'flying'; // 'flying', 'landing', 'perched', 'flushing'
+      this.perchTarget = null;
+      this.wingPhase = Math.random() * Math.PI * 2;
+      this.wingSpeed = 0.28 + Math.random() * 0.12;
+      this.bankAngle = 0;
+      this.scale = 0.85 + Math.random() * 0.35;
+    }
+
+    applyForce(fx, fy) {
+      this.ax += fx;
+      this.ay += fy;
+    }
+
+    flock(neighbors) {
+      if (this.state !== 'flying') return;
+
+      // Sort or limit to 7 topological nearest neighbors
+      let count = 0;
+      let alignX = 0, alignY = 0;
+      let cohX = 0, cohY = 0;
+      let sepX = 0, sepY = 0;
+
+      for (let i = 0; i < neighbors.length && count < TOPOLOGICAL_NEIGHBORS; i++) {
+        const other = neighbors[i];
+        if (other.state !== 'flying') continue;
+
+        const dx = other.x - this.x;
+        const dy = other.y - this.y;
+        const d2 = dx * dx + dy * dy;
+
+        if (d2 > 0 && d2 < 14400) { // 120px sensory radius
+          const d = Math.sqrt(d2);
+          
+          // Alignment
+          alignX += other.vx;
+          alignY += other.vy;
+
+          // Cohesion
+          cohX += other.x;
+          cohY += other.y;
+
+          // Separation (weighted inversely by distance)
+          if (d < 28) {
+            sepX -= (dx / d) * (28 - d);
+            sepY -= (dy / d) * (28 - d);
+          }
+          count++;
+        }
+      }
+
+      if (count > 0) {
+        // Alignment Force
+        alignX /= count;
+        alignY /= count;
+        const aLen = Math.hypot(alignX, alignY) || 1;
+        const steerAX = (alignX / aLen) * MAX_SPEED - this.vx;
+        const steerAY = (alignY / aLen) * MAX_SPEED - this.vy;
+        this.applyForce(steerAX * 0.65, steerAY * 0.65);
+
+        // Cohesion Force
+        cohX /= count;
+        cohY /= count;
+        const toCenterX = cohX - this.x;
+        const toCenterY = cohY - this.y;
+        const cLen = Math.hypot(toCenterX, toCenterY) || 1;
+        const steerCX = (toCenterX / cLen) * MAX_SPEED - this.vx;
+        const steerCY = (toCenterY / cLen) * MAX_SPEED - this.vy;
+        this.applyForce(steerCX * 0.45 * cohesionWeight, steerCY * 0.45 * cohesionWeight);
+
+        // Separation Force
+        this.applyForce(sepX * 0.85, sepY * 0.85);
+      }
+
+      // Predator Evasion
+      if (hawk.active) {
+        const hdx = this.x - hawk.x;
+        const hdy = this.y - hawk.y;
+        const hd2 = hdx * hdx + hdy * hdy;
+        if (hd2 < 45000) { // 210px danger bubble
+          const hd = Math.sqrt(hd2) || 1;
+          const fear = (210 - hd) / 210;
+          this.applyForce((hdx / hd) * fear * 2.8, (hdy / hd) * fear * 2.8);
+          // Shock wave roll
+          this.wingSpeed = 0.55;
+        }
+      }
+
+      // Sky Boundaries Soft Steering
+      const pad = 90;
+      if (this.x < pad) this.applyForce(0.18, 0);
+      if (this.x > width - pad) this.applyForce(-0.18, 0);
+      if (this.y < pad) this.applyForce(0, 0.22);
+      if (this.y > height * 0.75) this.applyForce(0, -0.28);
+
+      // Random Roost Attraction
+      if (perchAffinity > 0 && Math.random() < 0.0008 * perchAffinity) {
+        this.seekPerch();
+      }
+    }
+
+    seekPerch() {
+      if (perches.length === 0) return;
+      const idx = Math.floor(Math.random() * perches.length);
+      const target = perches[idx];
+      if (!target.occupied) {
+        target.occupied = this;
+        this.perchTarget = target;
+        this.state = 'landing';
+      }
+    }
+
+    flush() {
+      if (this.state === 'perched' || this.state === 'landing') {
+        if (this.perchTarget) {
+          this.perchTarget.occupied = null;
+          this.perchTarget = null;
+        }
+        this.state = 'flushing';
+        const blastAngle = -Math.PI * 0.5 + (Math.random() - 0.5) * 1.2;
+        const spd = 4.5 + Math.random() * 2.5;
+        this.vx = Math.cos(blastAngle) * spd;
+        this.vy = Math.sin(blastAngle) * spd;
+        setTimeout(() => { if (this.state === 'flushing') this.state = 'flying'; }, 600 + Math.random() * 600);
+      }
+    }
+
+    update() {
+      if (this.state === 'perched') {
+        this.wingPhase = 0;
+        return;
+      }
+
+      if (this.state === 'landing' && this.perchTarget) {
+        const dx = this.perchTarget.x - this.x;
+        const dy = this.perchTarget.y - this.y;
+        const dist = Math.hypot(dx, dy);
+
+        if (dist < 4) {
+          this.x = this.perchTarget.x;
+          this.y = this.perchTarget.y;
+          this.vx = 0;
+          this.vy = 0;
+          this.state = 'perched';
+          return;
+        }
+
+        const approachSpeed = Math.min(MAX_SPEED, Math.max(1.0, dist * 0.06));
+        this.vx = (dx / dist) * approachSpeed;
+        this.vy = (dy / dist) * approachSpeed;
+        this.x += this.vx;
+        this.y += this.vy;
+        this.wingPhase += this.wingSpeed * 0.7;
+        return;
+      }
+
+      // Flying & Flushing dynamics
+      // Clamp force
+      const forceLen = Math.hypot(this.ax, this.ay);
+      if (forceLen > MAX_FORCE) {
+        this.ax = (this.ax / forceLen) * MAX_FORCE;
+        this.ay = (this.ay / forceLen) * MAX_FORCE;
+      }
+
+      this.vx += this.ax;
+      this.vy += this.ay;
+
+      // Speed clamp
+      const speed = Math.hypot(this.vx, this.vy) || 1;
+      if (speed > MAX_SPEED) {
+        this.vx = (this.vx / speed) * MAX_SPEED;
+        this.vy = (this.vy / speed) * MAX_SPEED;
+      } else if (speed < MIN_SPEED) {
+        this.vx = (this.vx / speed) * MIN_SPEED;
+        this.vy = (this.vy / speed) * MIN_SPEED;
+      }
+
+      this.x += this.vx;
+      this.y += this.vy;
+
+      this.ax = 0;
+      this.ay = 0;
+
+      // Dynamic wing flapping frequency based on acceleration and glide
+      this.wingPhase += this.wingSpeed * (speed / 3.0);
+    }
+
+    draw() {
+      ctx.save();
+      ctx.translate(this.x, this.y);
+
+      if (this.state === 'perched') {
+        const perchAng = this.perchTarget ? this.perchTarget.angle : 0;
+        ctx.rotate(perchAng);
+        ctx.fillStyle = palettes[currentTheme].bird;
+        // Perched Starling silhouette with head cocked
+        ctx.beginPath();
+        ctx.ellipse(0, -3, 2.8 * this.scale, 4.5 * this.scale, 0.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath(); // Beak
+        ctx.moveTo(2 * this.scale, -6 * this.scale);
+        ctx.lineTo(5 * this.scale, -5.5 * this.scale);
+        ctx.lineTo(2 * this.scale, -4.5 * this.scale);
+        ctx.fill();
+        ctx.restore();
+        return;
+      }
+
+      // Flying silhouette
+      const heading = Math.atan2(this.vy, this.vx);
+      ctx.rotate(heading);
+      ctx.scale(this.scale, this.scale);
+
+      const wingCycle = Math.sin(this.wingPhase); // -1 (upstroke) to 1 (downstroke)
+      const wingSpan = 7.5;
+      const wingTipY = wingCycle * 6.5;
+
+      ctx.fillStyle = palettes[currentTheme].bird;
+
+      ctx.beginPath();
+      // Slender Starling torso
+      ctx.moveTo(5, 0); // Beak
+      ctx.lineTo(2, -1.2);
+      ctx.lineTo(-1, -wingSpan); // Left wingtip
+      ctx.lineTo(-2.5, -wingTipY);
+      ctx.lineTo(-4, -0.8);
+      ctx.lineTo(-7, 0); // Tail
+      ctx.lineTo(-4, 0.8);
+      ctx.lineTo(-2.5, wingTipY);
+      ctx.lineTo(-1, wingSpan); // Right wingtip
+      ctx.lineTo(2, 1.2);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.restore();
+    }
+  }
+
+  // --- Landscape Rendering: Silhouetted Hydro Wires & Oak Tree ---
+  function drawSky() {
+    const pal = palettes[currentTheme];
+    const grad = ctx.createLinearGradient(0, 0, 0, height);
+    const stops = pal.sky.length;
+    for (let i = 0; i < stops; i++) {
+      grad.addColorStop(i / (stops - 1), pal.sky[i]);
+    }
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  function drawLandscape() {
+    const pal = palettes[currentTheme];
+
+    // 1. Hydro Utility Pole & Power Lines
+    const poleX = width * 0.16;
+    const poleTopY = height * 0.48;
+    const poleBaseY = height;
+    
+    ctx.strokeStyle = pal.wire;
+    ctx.fillStyle = pal.wire;
+
+    // Pole Mast
+    ctx.beginPath();
+    ctx.moveTo(poleX - 4, poleBaseY);
+    ctx.lineTo(poleX - 2.5, poleTopY);
+    ctx.lineTo(poleX + 2.5, poleTopY);
+    ctx.lineTo(poleX + 4, poleBaseY);
+    ctx.fill();
+
+    // Crossarm Beam
+    ctx.fillRect(poleX - 32, poleTopY + 8, 64, 4);
+    ctx.fillRect(poleX - 22, poleTopY + 36, 44, 4);
+
+    // Insulators
+    ctx.fillRect(poleX - 28, poleTopY + 4, 3, 5);
+    ctx.fillRect(poleX + 25, poleTopY + 4, 3, 5);
+    ctx.fillRect(poleX - 18, poleTopY + 32, 3, 5);
+    ctx.fillRect(poleX + 15, poleTopY + 32, 3, 5);
+
+    // Sagging Hydro Wires
+    ctx.lineWidth = 1.2;
+    for (let w = 0; w < 3; w++) {
+      const yOffset = w * 28;
+      const startX = poleX - width * 0.1;
+      const endX = poleX + width * 0.28;
+      const startY = poleTopY + 10 + yOffset;
+
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.quadraticCurveTo(
+        (startX + endX) / 2,
+        startY + 22,
+        endX,
+        startY + 4
+      );
+      ctx.stroke();
+    }
+
+    // 2. Silhouetted Oak Tree Canopy (Procedural branch clusters)
+    const treeBaseX = width * 0.82;
+    const treeBaseY = height;
+    ctx.fillStyle = pal.tree;
+    ctx.strokeStyle = pal.tree;
+
+    // Trunk
+    ctx.beginPath();
+    ctx.moveTo(treeBaseX - 18, treeBaseY);
+    ctx.quadraticCurveTo(treeBaseX - 6, treeBaseY - 140, treeBaseX - 2, height * 0.56);
+    ctx.quadraticCurveTo(treeBaseX + 8, treeBaseY - 140, treeBaseX + 22, treeBaseY);
+    ctx.fill();
+
+    // Main Branches & Natural Canopy Mass
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    // Branch 1
+    ctx.moveTo(treeBaseX, height * 0.58);
+    ctx.quadraticCurveTo(treeBaseX - 45, height * 0.50, treeBaseX - 75, height * 0.44);
+    // Branch 2
+    ctx.moveTo(treeBaseX + 2, height * 0.56);
+    ctx.quadraticCurveTo(treeBaseX + 50, height * 0.48, treeBaseX + 80, height * 0.42);
+    // Branch 3
+    ctx.moveTo(treeBaseX - 1, height * 0.54);
+    ctx.quadraticCurveTo(treeBaseX - 15, height * 0.42, treeBaseX - 25, height * 0.35);
+    ctx.stroke();
+
+    // Leafy Canopy Silhouette Clusters
+    const clusters = [
+      { x: treeBaseX - 65, y: height * 0.44, rx: 55, ry: 38 },
+      { x: treeBaseX + 70, y: height * 0.43, rx: 60, ry: 42 },
+      { x: treeBaseX - 20, y: height * 0.34, rx: 50, ry: 35 },
+      { x: treeBaseX + 25, y: height * 0.36, rx: 54, ry: 38 },
+      { x: treeBaseX, y: height * 0.46, rx: 70, ry: 45 }
+    ];
+
+    for (let c of clusters) {
+      ctx.beginPath();
+      ctx.ellipse(c.x, c.y, c.rx, c.ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // --- Initialize Flock ---
+  let flock = [];
+  function adjustFlockSize() {
+    while (flock.length < targetFlockSize) flock.push(new Starling());
+    while (flock.length > targetFlockSize) {
+      const b = flock.pop();
+      if (b.perchTarget) b.perchTarget.occupied = null;
+    }
+    document.getElementById('hud-stats').innerText = `${flock.length.toLocaleString()} Birds • Topological 7-Neighbor Swarm`;
+  }
+
+  // --- Main Animation Loop ---
+  function loop() {
+    drawSky();
+
+    // Rebuild spatial grid for fast O(N) neighbor searches
+    grid.clear();
+    for (let i = 0; i < flock.length; i++) {
+      grid.insert(flock[i]);
+    }
+
+    // Update Hawk
+    hawk.update();
+
+    // Update & Flock Boids
+    for (let i = 0; i < flock.length; i++) {
+      const bird = flock[i];
+      if (bird.state === 'flying') {
+        const neighbors = grid.getNeighbors(bird, 90);
+        bird.flock(neighbors);
+      }
+      bird.update();
+    }
+
+    // Render Landscape Silhouette
+    drawLandscape();
+
+    // Render Hawk & Boids
+    hawk.draw();
+    for (let i = 0; i < flock.length; i++) {
+      flock[i].draw();
+    }
+
+    requestAnimationFrame(loop);
+  }
+
+  // --- User Interactions ---
+  window.addEventListener('resize', resize);
+  resize();
+  adjustFlockSize();
+  requestAnimationFrame(loop);
+
+  // Trigger hawk strike on screen tap/click
+  canvas.addEventListener('pointerdown', (e) => {
+    // Check if tapping tree or wires to flush
+    const rect = canvas.getBoundingClientRect();
+    const px = e.clientX - rect.left;
+    const py = e.clientY - rect.top;
+
+    if (px > width * 0.65 && py > height * 0.3) {
+      // Near tree
+      flushAll();
+    } else if (px < width * 0.45 && py > height * 0.4) {
+      // Near wires
+      flushAll();
+    } else {
+      hawk.strike(px, py);
+    }
+  });
+
+  function flushAll() {
+    for (let b of flock) {
+      if (b.state === 'perched' || b.state === 'landing') {
+        b.flush();
+      }
+    }
+  }
+
+  // --- UI Controls Wireup ---
+  const panel = document.getElementById('panel');
+  document.getElementById('toggle-panel').addEventListener('click', () => {
+    panel.classList.toggle('hidden');
+  });
+
+  const sliderFlock = document.getElementById('param-flock');
+  sliderFlock.addEventListener('input', (e) => {
+    targetFlockSize = parseInt(e.target.value);
+    document.getElementById('val-flock').innerText = targetFlockSize;
+    adjustFlockSize();
+  });
+
+  const sliderCohesion = document.getElementById('param-cohesion');
+  sliderCohesion.addEventListener('input', (e) => {
+    cohesionWeight = parseFloat(e.target.value);
+    document.getElementById('val-cohesion').innerText = cohesionWeight.toFixed(1);
+  });
+
+  const sliderPerch = document.getElementById('param-perch');
+  sliderPerch.addEventListener('input', (e) => {
+    perchAffinity = parseFloat(e.target.value);
+    document.getElementById('val-perch').innerText = perchAffinity.toFixed(1);
+  });
+
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+      e.target.classList.add('active');
+      currentTheme = e.target.dataset.theme;
+    });
+  });
+
+  document.getElementById('btn-hawk').addEventListener('click', () => {
+    hawk.strike(width * 0.5, height * 0.35);
+  });
+
+  document.getElementById('btn-flush').addEventListener('click', () => {
+    flushAll();
+  });
+
+})();
+</script>
+</body>
+</html>
